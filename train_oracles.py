@@ -6,10 +6,10 @@ add_generator("U", 3)
 from free_oracles import *
 
 
-N_ORACLES = 10
-N_WORDS   = 5
+N_ORACLES = 100
+N_WORDS   = 10
 N_LETTERS = 20
-N_GENERATIONS = 10
+N_GENERATIONS = 100
 
 oracles = []
 
@@ -19,33 +19,31 @@ for i in range(0, N_ORACLES):
 for i in range(0, N_GENERATIONS):
     print("#"*10, "Generation", i, "#"*10)
     
-    fits = []
+    best  = 0
+    best_oracle = None
+    worst = 0
     
     for j in range(0, len(oracles)):
         oracle = oracles[j]
         oracle.generate_words()
-        fit = oracle.fit()
         print("Oracle",j)
-        for word in oracle.words:
-            print("\t", word, word_simplify(word))
-        print("\t\t", fit, "\t", "*" * fit)
-        fits.append(fit)
+        fit = oracle.fit()
+        
+        if fit > best:
+            best = fit
+            best_oracle = oracle
+        if fit < worst or worst == 0: worst = fit
     
-    median = sum(fits) / len(fits)
-    print(median)
+    median = (best - worst)/2
+    print("best:",best, "worst:",worst, "median:",median)
     
-    # prune the below average oracles
     for oracle in oracles:
         if oracle.last_fit < median:
             oracles.remove(oracle)
-        
-    # update the remaining oracles
-    for oracle in oracles:
-        oracle.next_gen()
-        
+    
+    print(N_ORACLES - len(oracles), "oracles pruned")        
+    
     for i in range(len(oracles), N_ORACLES):
-        chosen = weighted_choice(oracles, fits)
-        oracles.append(chosen)
-        fits.append(chosen.fit())
-
-
+        oracles.append(best_oracle.clone())
+        
+    #input()

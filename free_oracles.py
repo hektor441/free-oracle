@@ -29,97 +29,95 @@ class FreeOracle:
         
         self.last_fit = 0
         
-        self.words   = []
-        self.powers  = []
+        self.words   = ["" for i in range(0, self.w)]
+        self.powers  = [[] for i in range(0, self.w)]
         self.weights = []
-        self.populate(self.w, self.n)
-    
-    def populate(self, new_words, new_weights):
-        # words   = [W_1,  W_2,  ... , W_w]
-        # powers  = [ [W_1_powers: [letter_1_power, letter_2_power, ..., letter_n_power]]]
-        # weights = [ [W_1_weightset: ([next_symbol_weights_1] [next_symbol_power_weights_1]), ...] ]
-        for i in range(0, new_words):
+        self.populate_weights(self.w, self.n)
+
+    def populate_weights(self, n_words, n_letters):
+        for i in range(0, n_words):
             self.weights.append([])
-            self.powers.append([])
-            self.words.append("")
-        for i in range(0, len(self.weights)):
-            weightset = self.weights[i]
-            
-            symbol_weights = []
-            power_weights  = []
-            
-            for j in range(0, new_weights):
-                # next symbol weights
-                symbol_weights = ([random() for symbol in symbols])
-                # next symbol's power weights
-                power_weights = ([random() for power in powers])
-                weight = [symbol_weights, power_weights]
-                weightset.append(weight)
         
-        #print("Debug 1", len(self.weights[0]))   
-            
-    def next_letter(self):
-        for i in range(0, self.w):
-            weightset = self.weights[i]
-            #print(len(weightset), len(self.words[i]), self.w, self.n)
-            weigths   = weightset[len(self.words[i])]
-            
-            symbol_weights = weigths[0]
-            power_weights  = weigths[1]
-
-            next_symbol = weighted_choice(symbols, symbol_weights)
-            next_power  = weighted_choice(powers, power_weights)
-
-            self.words[i] += next_symbol
-            self.powers[i].append(next_power)
+        for i in range(0, n_words):
+            # weightset = weights[i]
+            for j in range(0, n_letters):
+                # weight = [symbol_weight, power_weight]
+                symbol_weight = [random() for x in range(0, len(symbols))]
+                power_weight  = [random() for x in range(0, len(powers))]
+                self.weights[i].append([symbol_weight, power_weight])
     
     def generate_words(self):
-        for i in range(0, self.n):
-            #print("Debug 2", i)
-            self.next_letter()
-    
+        self.words   = ["" for i in range(0, self.w)]
+        self.powers  = [[] for i in range(0, self.w)]
+        for i in range(0, self.w):
+            # weightset = weights[i]
+            # powerset  = powers[i]
+            for j in range(0, self.n):
+                self.words[i] += weighted_choice(symbols, self.weights[i][j][0])
+                self.powers[i].append(weighted_choice(powers, self.weights[i][j][1]))
+
     def fit(self):
         total = 0
-        for i in range(0, len(self.words)):
+        for i in range(0, self.w):
             sample = self.words[i]
-
             word = ""
             for j in range(0, len(sample)):
                 word += sample[j] * self.powers[i][j]
             
             word = fg.word_simplify(word)
-            if word == "e": 
+            #print("\t", sample, "--", word, end="\t\t")
+            if word == "e":
                 if fg.word_is_primitive(word):
-                    total+= 200
+                    total+= len(sample) * 4 + 200
+                    print(len(sample), "x 4")
                 else:
-                    total+= 100
+                    total+= len(sample) * 2 + 100
+                    print(len(sample), "x 2")
             else:
                 total+= len(word)
+                #print(len(word))
+        #print("\tfit:",total, "(",total//self.w,")")
+        total //= self.w
+        
         self.last_fit = total
         return total
     
     def next_gen(self):
-        self.words  = []
-        self.powers = []
         
-        for i in range(0, len(self.weights)):
-            weightset = self.weights[i]
-            for j in range(0, len(weightset)):
-                weight = weightset[j]
-                
-                for s in range(0, len(weight[0])):
-                    weight[0][s] = (weight[0][s] + random()) % 1
-                                
-                for t in range(0, len(weight[1])):
-                    weight[1][t] = (weight[1][t] + random()) % 1
+        for i in range(0, self.w):
+            for j in range(0, self.n):
+                for s in range(0, len(symbols)):
+                    self.weights[i][j][0][s] = (self.weights[i][j][0][s] + choice([0.1, 0.0, -0.1])) % 1
+                    
+                for t in range(0, len(powers)):
+                    self.weights[i][j][1][t] = (self.weights[i][j][1][t] + choice([0.1, 0.0, -0.1])) % 1            
         
-        #if random() > 0.75:
+        if random() > 0.75:
             # strong mutation 
-        #    if random() > 0.50:
+            if random() > 0.50:
                 # one more word
-        #        self.w += 1
-        #    else:
-                # or one more letter for each word
-        #        self.n += 1
+                self.w += 1
                 
-        self.populate(self.w, self.n)
+                # add another set of weights for the new word
+                self.weights.append([])
+                
+                for j in range(0, self.n):
+                    symbol_weight = [random() for x in range(0, len(symbols))]
+                    power_weight  = [random() for x in range(0, len(powers))]
+                    self.weights[-1].append([symbol_weight, power_weight])
+            else:
+                # or one more letter for each word
+                self.n += 1
+                
+                # add a new weight to each weightset
+                for i in range(0, self.w):
+                    symbol_weight = [random() for x in range(0, len(symbols))]
+                    power_weight  = [random() for x in range(0, len(powers))]
+                    self.weights[i].append([symbol_weight, power_weight])
+
+    def clone(self):
+        oracle = FreeOracle(self.w, self.n)
+        oracle.last_fit = self.last_fit
+        oracle.weights = self.weights
+        return oracle    
+    
