@@ -65,7 +65,7 @@ class FreeOracle:
                 word += sample[j] * self.powers[i][j]
             
             word = fg.word_simplify(word)
-            #print("\t", sample, "--", word, end="\t\t")
+            print("\t", sample, "--", word, end="\t\t")
             if word == "e":
                 if fg.word_is_primitive(word):
                     total+= len(sample) * 4 + 200
@@ -75,22 +75,23 @@ class FreeOracle:
                     print(len(sample), "x 2")
             else:
                 total+= len(word)
-                #print(len(word))
-        #print("\tfit:",total, "(",total//self.w,")")
-        total //= self.w
+                print(len(word))
+        print("\tfit:",total)#, "(",total//self.w,")")
+        #total //= self.w
         
         self.last_fit = total
         return total
     
     def next_gen(self):
         
-        for i in range(0, self.w):
-            for j in range(0, self.n):
-                for s in range(0, len(symbols)):
-                    self.weights[i][j][0][s] = (self.weights[i][j][0][s] + choice([0.1, 0.0, -0.1])) % 1
-                    
-                for t in range(0, len(powers)):
-                    self.weights[i][j][1][t] = (self.weights[i][j][1][t] + choice([0.1, 0.0, -0.1])) % 1            
+        if random() > 0.95:
+            for i in range(0, self.w):
+                for j in range(0, self.n):
+                    for s in range(0, len(symbols)):
+                        self.weights[i][j][0][s] = (self.weights[i][j][0][s] + choice([0.1, 0.0, -0.1])) % 1
+                        
+                    for t in range(0, len(powers)):
+                        self.weights[i][j][1][t] = (self.weights[i][j][1][t] + choice([0.1, 0.0, -0.1])) % 1            
         
         if random() > 0.75:
             # strong mutation 
