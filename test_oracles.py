@@ -5,10 +5,12 @@ add_generator("U", 3)
 
 from free_oracles import *
 
-oracle = FreeOracle(5, 5)
+oracle = new_oracle(5)
 
-oracle.generate_words()
-print(oracle.fit())
-g = oracle.clone()
-g.generate_words()
-print(g.fit())
+print(fitness(oracle))
+
+print("\n***")
+
+g = breed(oracle)
+
+print(fit(g))

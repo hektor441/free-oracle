@@ -1,124 +1,79 @@
-import free_groups as fg
-from random import choice, random
+# Every oracle tries to guess a word in the free group  
+# fitness is calculated as follows, given a word of n letters that reduces to a word of m letters
+#   the fitness of the oracle foretelling it is n / m (double if the word is primitive)
+# ex. in <S, U | SS = UUU = id>  an oracle telling UUUS = S has fitness = 4 letters / 2 resulting symbols (id * S) = 2
+# SSUUS = UUS has fitness 5 / 3 < 2,  SSUUU = id has fitness 5 / 1 = 5
+# a primitive identity word doubles the fitness SUUUS = id has fitness 10
 
-# An oracle must guess identity words of n symbols
+import free_groups as fg
+from random import choice, randint, seed, random
 
 symbols = list(fg.generators.keys())
-max_power = max(fg.generators.values())
-powers = [i for i in range(1, max_power+1)]
 
-# weight =: [symbol weight] [power weight]
-# add_symbol : choose_symbol(symbol_weight) * choose_power(power_weight)
+N_GENES = 200
 
+# an oracle is a list of seeds
+#  
 
-def weighted_choice(elements, weights):
-    stock = []
-    for i in range(0, len(elements)):
-        element = elements[i]
-        weight  = weights[i]
-        
-        stock += [element] * int((0.5 + weight) * 100)
+def new_oracle(n_letters):
+    oracle = []
+    n_symbols = len(symbols)
     
-    return choice(stock)
+    for i in range(0, n_letters):
+        oracle.append(randint(0, N_GENES))
+        
+    return oracle
+
+def fitness(oracle, debug=False):
+    word = tell_word(oracle)
     
-
-class FreeOracle:
-    def __init__(self, w, n):
-        self.w = w
-        self.n = n
+    for i in range(0, len(oracle)):
+        seed(oracle[i])
+        word += choice(symbols)
         
-        self.last_fit = 0
-        
-        self.words   = ["" for i in range(0, self.w)]
-        self.powers  = [[] for i in range(0, self.w)]
-        self.weights = []
-        self.populate_weights(self.w, self.n)
-
-    def populate_weights(self, n_words, n_letters):
-        for i in range(0, n_words):
-            self.weights.append([])
-        
-        for i in range(0, n_words):
-            # weightset = weights[i]
-            for j in range(0, n_letters):
-                # weight = [symbol_weight, power_weight]
-                symbol_weight = [random() for x in range(0, len(symbols))]
-                power_weight  = [random() for x in range(0, len(powers))]
-                self.weights[i].append([symbol_weight, power_weight])
+    if debug:
+        print("Oracle:"+"-".join(map(str,oracle)))
+        print(word, end=" ")
     
-    def generate_words(self):
-        self.words   = ["" for i in range(0, self.w)]
-        self.powers  = [[] for i in range(0, self.w)]
-        for i in range(0, self.w):
-            # weightset = weights[i]
-            # powerset  = powers[i]
-            for j in range(0, self.n):
-                self.words[i] += weighted_choice(symbols, self.weights[i][j][0])
-                self.powers[i].append(weighted_choice(powers, self.weights[i][j][1]))
+    fit = len(word)
+    word = fg.word_simplify(word)
+    if word != "e":
+        fit /= len(word) + 1
+    else: fit*= 2 
+     
+    if fg.word_is_primitive(word):
+        return 2 * fit
+        print("*", end="")
 
-    def fit(self):
-        total = 0
-        for i in range(0, self.w):
-            sample = self.words[i]
-            word = ""
-            for j in range(0, len(sample)):
-                word += sample[j] * self.powers[i][j]
-            
-            word = fg.word_simplify(word)
-            print("\t", sample, "--", word, end="\t\t")
-            if word == "e":
-                if fg.word_is_primitive(word):
-                    total+= len(sample) * 4 + 200
-                    print(len(sample), "x 4")
-                else:
-                    total+= len(sample) * 2 + 100
-                    print(len(sample), "x 2")
-            else:
-                total+= len(word)
-                print(len(word))
-        print("\tfit:",total)#, "(",total//self.w,")")
-        #total //= self.w
-        
-        self.last_fit = total
-        return total
+    if debug:
+        print(word)
+        print("\t", fit)
+
+    return fit
+
+def breed(oracle, other=None):
+    new_oracle = oracle[:]
     
-    def next_gen(self):
-        
-        if random() > 0.95:
-            for i in range(0, self.w):
-                for j in range(0, self.n):
-                    for s in range(0, len(symbols)):
-                        self.weights[i][j][0][s] = (self.weights[i][j][0][s] + choice([0.1, 0.0, -0.1])) % 1
-                        
-                    for t in range(0, len(powers)):
-                        self.weights[i][j][1][t] = (self.weights[i][j][1][t] + choice([0.1, 0.0, -0.1])) % 1            
-        
-        if random() > 0.75:
-            # strong mutation 
-            if random() > 0.50:
-                # one more word
-                self.w += 1
-                
-                # add another set of weights for the new word
-                self.weights.append([])
-                
-                for j in range(0, self.n):
-                    symbol_weight = [random() for x in range(0, len(symbols))]
-                    power_weight  = [random() for x in range(0, len(powers))]
-                    self.weights[-1].append([symbol_weight, power_weight])
-            else:
-                # or one more letter for each word
-                self.n += 1
-                
-                # add a new weight to each weightset
-                for i in range(0, self.w):
-                    symbol_weight = [random() for x in range(0, len(symbols))]
-                    power_weight  = [random() for x in range(0, len(powers))]
-                    self.weights[i].append([symbol_weight, power_weight])
+    if other == None: other = oracle
+    
+    for i in range(0, len(oracle)):
+        if random() > 0.4:
+            new_oracle[i] = (new_oracle[i] + other[i % len(other)]) % N_GENES
+        elif random() > 0.5:
+            new_oracle[i] = randint(0, N_GENES)
+    
+    #if random() > 0.80:
+    #    new_oracle.append(new_oracle[-1])
+    #elif random() > 0.80:
+    #    new_oracle.pop()
+    
+    return new_oracle
 
-    def clone(self):
-        oracle = FreeOracle(self.w, self.n)
-        oracle.last_fit = self.last_fit
-        oracle.weights = self.weights
-        return oracle    
+def tell_word(oracle):
+    word = ""
+    
+    for i in range(0, len(oracle)):
+        seed(oracle[i])
+        word += choice(symbols)
+    return word    
     
